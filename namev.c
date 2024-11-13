@@ -45,11 +45,9 @@ lookup(vnode_t *dir, const char *name, size_t len, vnode_t **result)
         /* the "dir" argument must be non-NULL */
         KASSERT(NULL != dir); 
         dbg(DBG_PRINT, "(GRADING2A 2.a)\n");
-
         /* the "name" argument must be non-NULL */
         KASSERT(NULL != name); 
         dbg(DBG_PRINT, "(GRADING2A 2.a\n)");
-
         /* the "result" argument must be non-NULL */
         KASSERT(NULL != result); 
         dbg(DBG_PRINT, "(GRADING2A 2.a\n)");
@@ -60,7 +58,10 @@ lookup(vnode_t *dir, const char *name, size_t len, vnode_t **result)
         }
 
         dbg(DBG_PRINT, "(GRADING2A 2.a\n)");
-        return dir->vn_ops->lookup(dir, name, len, result);
+        int lookupVal = 0;
+        lookupVal = dir->vn_ops->lookup(dir, name, len, result);
+        dbg(DBG_PRINT, "(GRADING2A 2.a\n)");
+        return lookupVal;
         // NOT_YET_IMPLEMENTED("VFS: lookup");
         // return 0;
 }
@@ -111,7 +112,7 @@ dir_namev(const char *pathname, size_t *namelen, const char **name,
                 return -EINVAL; /* Invalid argument */
         }
 
-        
+
         
         
         
@@ -136,8 +137,58 @@ dir_namev(const char *pathname, size_t *namelen, const char **name,
 int
 open_namev(const char *pathname, int flag, vnode_t **res_vnode, vnode_t *base)
 {
-        NOT_YET_IMPLEMENTED("VFS: open_namev");
-        return 0;
+        size_t len = 0;
+        const char *name = NULL;
+        vnode_t *dir_vnode = NULL;
+        int retCode = dir_namev(pathname, &len, &name, base, dir_vnode);
+
+        if (retCode < 0){
+                dbg(DBG_PRINT, "(GRADING2A 2.c)\n");
+                return retCode;
+        }
+        retCode = lookup(dir_vnode, name, len, res_vnode);
+        if (retCode < 0){
+                /* please use TWO consecutive "conforming dbg() calls" for this 
+                since this function is not executed if you just start and stop weenix */
+
+                /* to create a file, need to make sure that the directory 
+                vnode supports the create operation */
+                if ((flag & O_CREAT)) { 
+                        KASSERT(NULL != dir_vnode->vn_ops->create);
+                        dbg(DBG_PRINT, "(GRADING2A 2.c)\n");
+                        dbg(DBG_PRINT, "(GRADING2A)\n");
+                }
+
+                /* No such file or directory */
+                if ((flag & O_CREAT) && retCode == -ENOENT){
+                        retCode = dir_vnode->vn_ops->create(dir_vnode, name, len, res_vnode);
+                        vput(dir_vnode);
+                        dbg(DBG_PRINT, "(GRADING2A 2.c)\n");
+                        return retCode;
+                }
+                else{
+                        vput(dir_vnode);
+                        dbg(DBG_PRINT, "(GRADING2A 2.c)\n");
+                        return retCode;
+                }
+        }
+        else{
+                if ((flag & O_WRONLY || flag & O_RDWR) && (*res_vnode)->vn_ops->mkdir != NULL){
+                        vput( *res_vnode);
+                        *res_vnode = NULL;
+                        vput(dir_vnode);
+                        dbg(DBG_PRINT, "(GRADING2A 2.c)\n");
+                        return -EISDIR; /* Is a directory */
+                }
+                else{
+                        vput(dir_vnode);
+                        dbg(DBG_PRINT, "(GRADING2A 2.c)\n");
+                        return 0;
+                }
+
+        }
+        // NOT_YET_IMPLEMENTED("VFS: open_namev");
+        // return 0;
 }
 
 #ifdef __GETCWD__
