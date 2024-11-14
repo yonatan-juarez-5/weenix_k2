@@ -65,8 +65,58 @@
 int
 do_read(int fd, void *buf, size_t nbytes)
 {
-        NOT_YET_IMPLEMENTED("VFS: do_read");
-        return -1;
+        if (fd < 0 || fd >= NFILES){
+                dbg(DBG_PRINT, "(GRADING2B)\n");
+                return -EBADF; /* Bad file number */
+        }
+        file_t *file = NULL;
+        file = fget(fd);
+
+        if(file == NULL){
+                dbg(DBG_PRINT, "(GRADING2B)\n");
+                return -EBADF;
+        }
+        
+        // NO ERROR
+        dbg(DBG_PRINT, "(GRADING2B)\n");
+        if (file->f_mode & FMODE_READ){
+                dbg(DBG_PRINT, "(GRADING2B)\n");
+                if(!(S_ISDIR(file->f_vnode->vn_mode)) && file->f_vnode->vn_ops->read != NULL){
+                        unsigned int bytes = file->f_vnode->vn_ops->read(file->f_vnode,file->f_pos,buf,nbytes);
+                        int seekResult = 0;
+                        dbg(DBG_PRINT, "(GRADING2B)\n");
+                        if(bytes>0){
+                                dbg(DBG_PRINT, "(GRADING2B)\n");
+                                seekResult = do_lseek(fd,bytes,SEEK_CUR);
+                        }
+                        else if (bytes == 0){
+                                dbg(DBG_PRINT, "(GRADING2B)\n");
+                                if(nbytes!=0){
+                                        dbg(DBG_PRINT, "(GRADING2B)\n");
+                                        seekResult = do_lseek(fd,0,SEEK_END);
+                                }
+                        }
+                        fput(file);
+                        if(seekResult<0){
+                                dbg(DBG_PRINT, "(GRADING2B)\n");
+                                return seekResult;
+                        }
+                        dbg(DBG_PRINT, "(GRADING2B)\n");
+                        return bytes;
+                }
+                else{
+                        fput(file);
+                        dbg(DBG_PRINT, "(GRADING2B)\n");
+                        return -EISDIR;
+                }
+        }
+        else{
+                fput(file);
+                dbg(DBG_PRINT, "(GRADING2B)\n");
+                return -EBADF;
+        }
+        // NOT_YET_IMPLEMENTED("VFS: do_read");
+        // return -1;
 }
 
 /* Very similar to do_read.  Check f_mode to be sure the file is writable.  If
@@ -80,8 +130,70 @@ do_read(int fd, void *buf, size_t nbytes)
 int
 do_write(int fd, const void *buf, size_t nbytes)
 {
-        NOT_YET_IMPLEMENTED("VFS: do_write");
-        return -1;
+        if (fd < 0 || fd >= NFILES){
+                dbg(DBG_PRINT, "(GRADING2B)\n");
+                return -EBADF; /* Bad file number */
+        }
+        file_t *file = NULL;
+        file = fget(fd);
+
+        if (file == NULL){
+                dbg(DBG_PRINT, "(GRADING2B)\n");
+                return -EBADF; /* Bad file number */
+        }
+
+        // NO ERROR
+        dbg(DBG_PRINT, "(GRADING2B)\n");
+        if (file->f_mode & FMODE_WRITE){
+                dbg(DBG_PRINT, "(GRADING2B)\n");
+                if(!(S_ISDIR(file->f_vnode->vn_mode)) && file->f_vnode->vn_ops->write != NULL){
+                        int seek_res = 0;
+
+                        dbg(DBG_PRINT, "(GRADING2B)\n");
+                        if(file->f_mode & FMODE_APPEND){
+                                dbg(DBG_PRINT, "(GRADING2B)\n");
+                                seek_res = do_lseek(fd,0,SEEK_END);
+                        }
+                        int bytes = 0;
+                        bytes = file->f_vnode->vn_ops->write(file->f_vnode,file->f_pos,buf,nbytes);
+
+                        if(bytes > 0){
+                                /* f is a pointer to the corresponding file */
+                                /* write is successful and after cursor position has been updated */
+                                /* cursor must not go past end of file for these file types */  
+                                KASSERT((S_ISCHR(file->f_vnode->vn_mode)) ||
+                                (S_ISBLK(file->f_vnode->vn_mode)) ||
+                                ((S_ISREG(file->f_vnode->vn_mode)) && (file->f_pos <= file->f_vnode->vn_len)));
+                                dbg(DBG_PRINT, "(GRADING2A 3.c)\n");
+                                dbg(DBG_PRINT, "(GRADING2B)\n");
+                                seek_res = do_lseek(fd,bytes,SEEK_CUR); 
+                        }
+                        fput(file);
+                        if (seek_res < 0){
+                                dbg(DBG_PRINT, "(GRADING2B)\n");
+                                return seek_res;
+                        }
+                        return bytes;
+                }
+                else{
+                        fput(file);
+                        dbg(DBG_PRINT, "(GRADING2B)\n");
+                        return -EISDIR; /* Is a directory */
+                }
+        }
+        else{
+                fput(file);
+                dbg(DBG_PRINT, "(GRADING2B)\n");
+                return -EBADF;
+        }
+        /* f is a pointer to the corresponding file */
+        /* write is successful and after cursor position has been updated */
+        /* cursor must not go past end of file for these file types */                         
+        // KASSERT((S_ISCHR(f->f_vnode->vn_mode)) ||
+        //         (S_ISBLK(f->f_vnode->vn_mode)) ||
+        //         ((S_ISREG(f->f_vnode->vn_mode)) && (f->f_pos <= f->f_vnode->vn_len))) ;
+        // NOT_YET_IMPLEMENTED("VFS: do_write");
+        // return -1;
 }
 
 /*
@@ -136,8 +248,28 @@ do_close(int fd)
 int
 do_dup(int fd)
 {
-        NOT_YET_IMPLEMENTED("VFS: do_dup");
-        return -1;
+        if (fd >= 0 && fd < NFILES && curproc->p_files[fd] != NULL){
+                file_t *file = NULL;
+                file = fget(fd);
+                int get_fd = get_empty_fd(curproc);
+                dbg(DBG_PRINT, "(GRADING2B)\n");
+                if (get_fd < 0){
+                        fput(file);
+                        dbg(DBG_PRINT, "(GRADING2B)\n");
+                        return get_fd;
+                }
+                else{
+                        curproc->p_files[get_fd] = curproc->p_files[fd];
+                        dbg(DBG_PRINT, "(GRADING2B)\n");
+                        return get_fd;
+                }
+        }
+        else{
+                dbg(DBG_PRINT, "(GRADING2B)\n");
+                return -EBADF;
+        }
+        // NOT_YET_IMPLEMENTED("VFS: do_dup");
+        // return -1;
 }
 
 /* Same as do_dup, but insted of using get_empty_fd() to get the new fd,
@@ -152,8 +284,38 @@ do_dup(int fd)
 int
 do_dup2(int ofd, int nfd)
 {
-        NOT_YET_IMPLEMENTED("VFS: do_dup2");
-        return -1;
+        if (ofd >= 0 && ofd < NFILES && nfd >= 0 && nfd < NFILES && curproc->p_files[ofd] != NULL){
+                dbg(DBG_PRINT, "(GRADING2B)\n");
+                if (ofd == nfd){
+                        dbg(DBG_PRINT, "(GRADING2B)\n");
+                        return ofd;
+                }
+                else{
+                        int close_res = 0;
+                        dbg(DBG_PRINT, "(GRADING2B)\n");
+                        if(curproc->p_files[nfd] != NULL){
+                                close_res = do_close(nfd);
+                                dbg(DBG_PRINT, "(GRADING2B)\n");
+                        }
+                        if (close_res == 0){
+                                file_t *file = fget(ofd);
+                                curproc->p_files[nfd] = file;
+                                dbg(DBG_PRINT, "(GRADING2B)\n");
+                                return nfd;
+                        }
+                        else{
+                                dbg(DBG_PRINT, "(GRADING2B)\n");
+                                return close_res;
+                        }
+                }
+        }
+        else{
+                dbg(DBG_PRINT, "(GRADING2B)\n");
+                return -EBADF;
+        }
+
+        // NOT_YET_IMPLEMENTED("VFS: do_dup2");
+        // return -1;
 }
 
 /*

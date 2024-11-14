@@ -91,6 +91,71 @@ get_empty_fd(proc_t *p)
 int
 do_open(const char *filename, int oflags)
 {
-        NOT_YET_IMPLEMENTED("VFS: do_open");
-        return -1;
+        int rw=0, wo=0, ro= 0;
+        rw = (oflags & O_RDWR) && !(oflags & O_WRONLY) && !(oflags & O_RDONLY);
+        wo = (oflags & O_WRONLY) && !(oflags & O_RDWR);
+        ro = ((oflags == O_RDONLY) || (oflags == (O_RDONLY | O_CREAT))) && !(oflags & O_RDWR);
+
+        int append = (oflags & O_APPEND);
+        if ((ro && wo) || (rw && (ro || wo))){
+                dbg(DBG_PRINT, "(GRADING2B)\n");
+                return -EINVAL; /* Invalid argument */
+        }
+        int fd = 0;
+        fd = get_empty_fd(curproc);
+        if (fd == -EMFILE){
+                dbg(DBG_PRINT, "(GRADING2B)\n");
+                return -EMFILE; /* Too many open files */
+        }
+
+        file_t *file=NULL;
+        file = fget(-1);
+
+        if (file == NULL){
+                dbg(DBG_PRINT, "(GRADING2B)\n");
+                return -ENOMEM; /* Out of memory */
+        }
+
+        // NO ERRORS, SUCCESS fget() call
+        curproc->p_files[fd] = file;
+        file->f_mode = 0;
+        dbg(DBG_PRINT, "(GRADING2B)\n");
+
+        if (append){
+                file->f_mode = FMODE_APPEND;
+                dbg(DBG_PRINT, "(GRADING2B)\n");
+        }
+        if (wo){
+                file->f_mode = file->f_mode | FMODE_WRITE;
+                dbg(DBG_PRINT, "(GRADING2B)\n");
+        }
+        else if (rw){
+                file->f_mode = file->f_mode | FMODE_READ | FMODE_WRITE;
+                dbg(DBG_PRINT, "(GRADING2B)\n");
+        }
+        else{
+                fput(file);
+                curproc->p_files[fd] = NULL;
+                dbg(DBG_PRINT, "(GRADING2B)\n");
+                return -EINVAL; /* Invalid argument */
+        }
+
+        vnode_t *res_vnode = NULL;
+        int res = open_namev(filename, oflags, &res_vnode, NULL);
+        
+        if (res < 0){
+                curproc->p_files[fd] = NULL;
+                fput(file);
+                dbg(DBG_PRINT, "(GRADING2B)\n");
+                return res;
+        }
+        
+        file->f_pos = 0;
+        file->f_refcount = 1;
+        file->f_vnode = res_vnode;
+        dbg(DBG_PRINT, "(GRADING2B)\n");
+        return fd;
+        
+        // NOT_YET_IMPLEMENTED("VFS: do_open");
+        // return -1;
 }

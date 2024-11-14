@@ -152,11 +152,25 @@ idleproc_run(int arg1, void *arg2)
         /* Once you have VFS remember to set the current working directory
          * of the idle and init processes */
         NOT_YET_IMPLEMENTED("VFS: idleproc_run");
+        curproc->p_cwd = vfs_root_vn;
+        vref(vfs_root_vn);
+
+        initthr->kt_proc->p_cwd = vfs_root_vn;
+        vref(vfs_root_vn);
 
         /* Here you need to make the null, zero, and tty devices using mknod */
         /* You can't do this until you have VFS, check the include/drivers/dev.h
          * file for macros with the device ID's you will need to pass to mknod */
         NOT_YET_IMPLEMENTED("VFS: idleproc_run");
+
+        do_mkdir("/dev");
+        dbg(DBG_PRINT, "(GRADING2A)\n");
+        do_mknod("/dev/null", S_IFCHR, MKDEVID(1, 0));
+        dbg(DBG_PRINT, "(GRADING2A)\n");
+        do_mknod("/dev/zero", S_IFCHR, MKDEVID(1, 1));
+        dbg(DBG_PRINT, "(GRADING2A)\n");
+        do_mknod("/dev/tty0", S_IFCHR, MKDEVID(2, 0));
+        dbg(DBG_PRINT, "(GRADING2A)\n");
 #endif
 
         /* Finally, enable interrupts (we want to make sure interrupts
@@ -230,6 +244,18 @@ initproc_run(int arg1, void *arg2)
             dbg(DBG_PRINT, "(GRADING1B)\n");
             kshell_add_command("faber", (kshell_cmd_func_t)&run_faber_thread_test, "run faber");
 
+        // VFS code
+        #ifdef __VFS__
+                dbg(DBG_PRINT, "(GRADING2B)\n");
+                kshell_add_command("vfstest", (kshell_cmd_func_t)&run_vfs_test, "run vfs");
+
+                dbg(DBG_PRINT, "(GRADING2B)\n");
+                kshell_add_command("treadtest", (kshell_cmd_func_t)&run_thread_test, "run faber fs thread test");
+
+                dbg(DBG_PRINT, "(GRADING2B)\n");
+                kshell_add_command("dirtest", (kshell_cmd_func_t)&run_directory_test, "run faber fs directory test");
+
+        #endif
             kshell_t *kshell = kshell_create(0);
             if (NULL == kshell){
                 dbg(DBG_PRINT, "(GRADING1B)\n");

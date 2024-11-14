@@ -108,16 +108,93 @@ dir_namev(const char *pathname, size_t *namelen, const char **name,
         dbg(DBG_PRINT, "(GRADING2A 2.b)\n");
 
         if (*pathname == '\0'){
-                dbg(DBG_PRINT, "(GRADING2A 2.b)\n");
+                dbg(DBG_PRINT, "(GRADING2A)\n");
                 return -EINVAL; /* Invalid argument */
         }
 
+        vnode_t *prev = NULL, *base_vnode = NULL;
+        int i = 0, offset = 0, len = 0, ret_code = 0;
 
+        if (pathname[0] == '/'){
+                base_vnode = vfs_root_vn;
+        }
+        else if (base != NULL){
+                base_vnode = base;
+        }
+        else{
+                base_vnode = curproc->p_cwd;
+        }
+
+        vref(base_vnode);
+        while(pathname[i] == '/'){
+                i++;
+        }
+
+        do{
+                len = 0;
+                offset = i;
+                if (pathname[i] == '\0' && prev == NULL){
+                        *namelen = 1;
+                        *name = ".";
+                        *res_vnode = base_vnode;
+                        dbg(DBG_PRINT, "(GRADING2B)\n");
+                        return 0;
+                }
+                if (prev != NULL){
+                        vput(prev);
+                        dbg(DBG_PRINT, "(GRADING2B)\n");
+                }
+                prev = base_vnode;
+                while(pathname[i] != '/' && pathname[i] != '\0'){
+                        i++;
+                        len++;
+                        // dbg(DBG_PRINT, "(GRADING2B)\n");
+                }
+                // dbg(DBG_PRINT, "(GRADING2B)\n");
+
+                if (len > NAME_LEN){
+                        vput(prev);
+                        return -ENAMETOOLONG;
+                } 
+
+                ret_code = lookup(prev, pathname+offset, len, &base_vnode);
+                /* pathname resolution must start with a valid directory */
+                KASSERT(NULL != base_vnode); 
+                dbg(DBG_PRINT, "(GRADING2A 2.b)\n");
+                if ((ret_code == -ENOTDIR) || (ret_code < 0 && ret_code != ENOENT)){
+                        vput(prev);
+                        dbg(DBG_PRINT, "(GRADING2B)\n");
+                        return ret_code;
+                }
+
+                while(pathname[i] == '/'){
+                        i++;
+                }
+
+        }while(pathname[i] != '\0' && ret_code >= 0);
+
+
+        if (pathname[i-1] == '/'){
+                if (!S_ISDIR(base_vnode->vn_mode)){
+                        vput(prev);
+                        vput(base_vnode);
+                        dbg(DBG_PRINT, "(GRADING2B)\n");
+                        return -ENOTDIR;
+                }
+        }
+
+        if (pathname[i] != '\0'){
+                vput(prev);
+                dbg(DBG_PRINT, "(GRADING2B)\n");
+                return -ENOENT;
+        }
+        else if(ret_code == 0){
+                vput(base_vnode);
+        }
         
-        
-        
-        /* pathname resolution must start with a valid directory */
-        // KASSERT(NULL != dir_vnode); 
+        *name = pathname + offset;
+        *namelen = len;
+        *res_vnode = prev;
         
         // NOT_YET_IMPLEMENTED("VFS: dir_namev");
         return 0;
