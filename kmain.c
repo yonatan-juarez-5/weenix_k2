@@ -83,6 +83,13 @@ static void *run_faber_thread_test(kshell_t *kshell, int argc, char **argv);
 static void *run_sunghan_test(kshell_t *kshell, int argc, char **argv);
 static void *run_sunghan_deadlock_test(kshell_t *kshell, int argc, char **argv);
 
+extern void *vfstest_main(int, void*);
+extern int faber_fs_thread_test(kshell_t *kshell, int argc, char **argv);
+extern int faber_directory_test(kshell_t *kshell, int argc, char **argv);
+
+
+
+
 /**
  * This function is called from kmain, however it is not running in a
  * thread context yet. It should create the idle process which will
@@ -250,10 +257,10 @@ initproc_run(int arg1, void *arg2)
                 kshell_add_command("vfstest", (kshell_cmd_func_t)&run_vfs_test, "run vfs");
 
                 dbg(DBG_PRINT, "(GRADING2B)\n");
-                kshell_add_command("treadtest", (kshell_cmd_func_t)&run_thread_test, "run faber fs thread test");
+                kshell_add_command("treadtest", (kshell_cmd_func_t)&faber_fs_thread_test, "run faber fs thread test");
 
                 dbg(DBG_PRINT, "(GRADING2B)\n");
-                kshell_add_command("dirtest", (kshell_cmd_func_t)&run_directory_test, "run faber fs directory test");
+                kshell_add_command("dirtest", (kshell_cmd_func_t)&faber_directory_test, "run faber fs directory test");
 
         #endif
             kshell_t *kshell = kshell_create(0);
@@ -270,7 +277,7 @@ initproc_run(int arg1, void *arg2)
         return NULL;
 }
 
-#ifdef __DRIVERS__
+// #ifdef __DRIVERS__
 static void* run_faber_thread_test(kshell_t *kshell, int argc, char **argv){
         KASSERT(kshell != NULL);
         dbg(DBG_PRINT, "(GRADING1C)\n");
@@ -311,4 +318,20 @@ static void* run_sunghan_deadlock_test(kshell_t *kshell, int argc, char **argv){
         return 0;
 }
 
-#endif
+static void* run_vfs_test(kshell_t *kshell, int argc, char** argv){
+        KASSERT(kshell != NULL);
+        dbg(DBG_PRINT, "(GRADING2B)\n");
+        proc_t *p = proc_create("vfstest");
+        kthread_t *kthr = kthread_create(p, vfstest_main, 1, NULL);
+        int status = 0;
+        dbg(DBG_PRINT, "(GRADING2B)\n");
+        sched_make_runnable(kthr);
+        dbg(DBG_PRINT, "(GRADING2B)\n");
+        do_waitpid(p->p_pid, 0, &status);
+        dbg(DBG_PRINT, "(GRADING2B)\n");
+        return 0;
+}
+
+
+
+// #endif
