@@ -121,7 +121,7 @@ special_file_read(vnode_t *file, off_t offset, void *buf, size_t count)
         dbg(DBG_PRINT, "(GRADING2A 1.a)\n");
         
         if (S_ISBLK(file->vn_mode)){
-                dbg(DBG_PRINT, "(GRADING2A)\n");
+                dbg(DBG_PRINT, "(GRADING2B)\n");
                 return -ENOTSUP;
         }
 
@@ -131,7 +131,7 @@ special_file_read(vnode_t *file, off_t offset, void *buf, size_t count)
 
         int nBytes = 0;
         nBytes = file->vn_cdev->cd_ops->read(file->vn_cdev, offset, buf, count);
-        dbg(DBG_PRINT, "(GRADING2A)\n");
+        dbg(DBG_PRINT, "(GRADING2B)\n");
         return nBytes;
         // NOT_YET_IMPLEMENTED("VFS: special_file_read");
         // return 0;
@@ -148,16 +148,19 @@ special_file_write(vnode_t *file, off_t offset, const void *buf, size_t count)
 {
         /* the "file" argument must be a non-NULL vnode */
         KASSERT(file); 
+        dbg(DBG_PRINT, "(GRADING2A 1.b)\n");
         /* the "file" argument must represent a character or a block device */
         KASSERT((S_ISCHR(file->vn_mode) || S_ISBLK(file->vn_mode)));
+        dbg(DBG_PRINT, "(GRADING2A 1.b)\n");
 
         if (S_ISBLK(file->vn_mode)){
-                dbg(DBG_PRINT, "(GRADING2A)\n");
+                dbg(DBG_PRINT, "(GRADING2B)\n");
                 return -ENOTSUP;
         }
         
         /* make sure these points are non-null */
         KASSERT(file->vn_cdev && file->vn_cdev->cd_ops && file->vn_cdev->cd_ops->write);
+        dbg(DBG_PRINT, "(GRADING2A 1.b)\n");
         int nBytes = 0;
         nBytes = file->vn_cdev->cd_ops->write(file->vn_cdev, offset, buf, count);
         dbg(DBG_PRINT, "(GRADING2A)\n");

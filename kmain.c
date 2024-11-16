@@ -83,6 +83,8 @@ static void *run_faber_thread_test(kshell_t *kshell, int argc, char **argv);
 static void *run_sunghan_test(kshell_t *kshell, int argc, char **argv);
 static void *run_sunghan_deadlock_test(kshell_t *kshell, int argc, char **argv);
 
+static void *run_vfs_test(kshell_t *kshell, int argc, char **argv);
+
 extern void *vfstest_main(int, void*);
 extern int faber_fs_thread_test(kshell_t *kshell, int argc, char **argv);
 extern int faber_directory_test(kshell_t *kshell, int argc, char **argv);
@@ -158,7 +160,7 @@ idleproc_run(int arg1, void *arg2)
 #ifdef __VFS__
         /* Once you have VFS remember to set the current working directory
          * of the idle and init processes */
-        NOT_YET_IMPLEMENTED("VFS: idleproc_run");
+        // NOT_YET_IMPLEMENTED("VFS: idleproc_run");
         curproc->p_cwd = vfs_root_vn;
         vref(vfs_root_vn);
 
@@ -168,16 +170,22 @@ idleproc_run(int arg1, void *arg2)
         /* Here you need to make the null, zero, and tty devices using mknod */
         /* You can't do this until you have VFS, check the include/drivers/dev.h
          * file for macros with the device ID's you will need to pass to mknod */
-        NOT_YET_IMPLEMENTED("VFS: idleproc_run");
+        // NOT_YET_IMPLEMENTED("VFS: idleproc_run");
 
         do_mkdir("/dev");
         dbg(DBG_PRINT, "(GRADING2A)\n");
         do_mknod("/dev/null", S_IFCHR, MKDEVID(1, 0));
         dbg(DBG_PRINT, "(GRADING2A)\n");
+
         do_mknod("/dev/zero", S_IFCHR, MKDEVID(1, 1));
         dbg(DBG_PRINT, "(GRADING2A)\n");
         do_mknod("/dev/tty0", S_IFCHR, MKDEVID(2, 0));
         dbg(DBG_PRINT, "(GRADING2A)\n");
+
+        // do_mknod("/dev/tty1", S_IFCHR, MKDEVID(2, 1));
+        // dbg(DBG_PRINT, "(GRADING2A)\n");
+        // do_mknod("/dev/sda", S_IFBLK, MKDEVID(1, 0));
+        // dbg(DBG_PRINT, "(GRADING2A)\n");
 #endif
 
         /* Finally, enable interrupts (we want to make sure interrupts
@@ -240,7 +248,7 @@ initproc_run(int arg1, void *arg2)
 {
         // NOT_YET_IMPLEMENTED("PROCS: initproc_run");
         // faber_thread_test(0, NULL);
-
+        int status;
         #ifdef __DRIVERS__
             dbg(DBG_PRINT, "(GRADING1B)\n");
             kshell_add_command("sunghan", (kshell_cmd_func_t)&run_sunghan_test, "run sunghan");
@@ -257,7 +265,7 @@ initproc_run(int arg1, void *arg2)
                 kshell_add_command("vfstest", (kshell_cmd_func_t)&run_vfs_test, "run vfs");
 
                 dbg(DBG_PRINT, "(GRADING2B)\n");
-                kshell_add_command("treadtest", (kshell_cmd_func_t)&faber_fs_thread_test, "run faber fs thread test");
+                kshell_add_command("threadtest", (kshell_cmd_func_t)&faber_fs_thread_test, "run faber fs thread test");
 
                 dbg(DBG_PRINT, "(GRADING2B)\n");
                 kshell_add_command("dirtest", (kshell_cmd_func_t)&faber_directory_test, "run faber fs directory test");
@@ -273,11 +281,13 @@ initproc_run(int arg1, void *arg2)
             }
             kshell_destroy(kshell);
         #endif /* __DRIVERS__ */
+        while(do_waitpid(-1, 0, &status) != -ECHILD);
+        dbg(DBG_PRINT, "(GRADING1A)\n");
 
         return NULL;
 }
 
-// #ifdef __DRIVERS__
+#ifdef __DRIVERS__
 static void* run_faber_thread_test(kshell_t *kshell, int argc, char **argv){
         KASSERT(kshell != NULL);
         dbg(DBG_PRINT, "(GRADING1C)\n");
@@ -334,4 +344,4 @@ static void* run_vfs_test(kshell_t *kshell, int argc, char** argv){
 
 
 
-// #endif
+#endif

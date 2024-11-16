@@ -164,7 +164,7 @@ do_write(int fd, const void *buf, size_t nbytes)
                                 KASSERT((S_ISCHR(file->f_vnode->vn_mode)) ||
                                 (S_ISBLK(file->f_vnode->vn_mode)) ||
                                 ((S_ISREG(file->f_vnode->vn_mode)) && (file->f_pos <= file->f_vnode->vn_len)));
-                                dbg(DBG_PRINT, "(GRADING2A 3.c)\n");
+                                dbg(DBG_PRINT, "(GRADING2A 3.a)\n");
                                 dbg(DBG_PRINT, "(GRADING2B)\n");
                                 seek_res = do_lseek(fd,bytes,SEEK_CUR); 
                         }
@@ -259,7 +259,8 @@ do_dup(int fd)
                         return get_fd;
                 }
                 else{
-                        curproc->p_files[get_fd] = curproc->p_files[fd];
+                        curproc->p_files[get_fd] = file;
+                        // curproc->p_files[get_fd] = curproc->p_files[fd];
                         dbg(DBG_PRINT, "(GRADING2B)\n");
                         return get_fd;
                 }
@@ -284,6 +285,24 @@ do_dup(int fd)
 int
 do_dup2(int ofd, int nfd)
 {
+        // if (ofd < 0 || ofd >= NFILES){
+        //         dbg(DBG_PRINT, "(GRADING2B)\n");
+        //         return -EBADF;
+        // }
+        // file_t *file = fget(ofd);
+        // if (file == NULL){
+        //         dbg(DBG_PRINT, "(GRADING2B)\n");
+        //         return -EBADF;
+        // }
+
+        // if(curproc->p_files[nfd] != NULL){
+        //         do_close(nfd);
+        //         dbg(DBG_PRINT, "(GRADING2B)\n");
+        // }
+        // curproc->p_files[nfd] = file;
+        // dbg(DBG_PRINT, "(GRADING2B)\n");
+        // return nfd;
+
         if (ofd >= 0 && ofd < NFILES && nfd >= 0 && nfd < NFILES && curproc->p_files[ofd] != NULL){
                 dbg(DBG_PRINT, "(GRADING2B)\n");
                 if (ofd == nfd){
@@ -373,10 +392,10 @@ do_mknod(const char *path, int mode, unsigned devid)
                                 create the target special file */
                                 KASSERT(NULL != dir_vnode->vn_ops->mknod);
                                 dbg(DBG_PRINT, "(GRADING2A 3.b)\n");
-                                int mknodResult = dir_vnode->vn_ops->mknod(dir_namev,pathname,len,mode,devid);
+                                int res = dir_vnode->vn_ops->mknod(dir_vnode,pathname,len,mode,devid);
                                 vput(dir_vnode);
                                 dbg(DBG_PRINT, "(GRADING2B)\n");
-                                return mknodResult;
+                                return res;
                         }
                 }
                 else{
@@ -436,10 +455,10 @@ do_mkdir(const char *path)
                 /* dir_vnode is the directory vnode where you will create the target directory */
                 KASSERT(NULL != dir_vnode->vn_ops->mkdir);
                 dbg(DBG_PRINT, "(GRADING2A 3.c)\n");
-                int mkdirResult = dir_vnode->vn_ops->mkdir(dir_vnode,pathname,len);
+                int res = dir_vnode->vn_ops->mkdir(dir_vnode,pathname,len);
                 vput(dir_vnode);
                 dbg(DBG_PRINT, "(GRADING2B)\n");
-                return mkdirResult;
+                return res;
         }
         
         // NOT_YET_IMPLEMENTED("VFS: do_mkdir");
@@ -507,11 +526,11 @@ do_rmdir(const char *path)
                 /* dir_vnode is the directory vnode where you will remove the target directory */
                 KASSERT(NULL != dir_vnode->vn_ops->rmdir);
                 dbg(DBG_PRINT, "(GRADING2A 3.d)\n");
-                int rmdirResult = dir_vnode->vn_ops->rmdir(dir_vnode,pathname,len);
+                int res = dir_vnode->vn_ops->rmdir(dir_vnode,pathname,len);
                 vput(res_vnode);
                 vput(dir_vnode);
                 dbg(DBG_PRINT, "(GRADING2B)\n");
-                return rmdirResult;
+                return res;
         }
         else{
                 vput(res_vnode);
@@ -575,11 +594,11 @@ do_unlink(const char *path)
                 /* dir_vnode is the directory vnode where you will unlink the target file */
                 KASSERT(NULL != dir_vnode->vn_ops->unlink);
                 dbg(DBG_PRINT, "(GRADING2A 3.e)\n");
-                int unlink_res = dir_vnode->vn_ops->unlink(dir_vnode, pathname, len);
+                int res = dir_vnode->vn_ops->unlink(dir_vnode, pathname, len);
                 vput(res_vnode);
                 vput(dir_vnode);
                 dbg(DBG_PRINT, "(GRADING2B)\n");
-                return unlink_res;
+                return res;
         }
         // NOT_YET_IMPLEMENTED("VFS: do_unlink");
         // return -1;
@@ -627,7 +646,7 @@ do_link(const char *from, const char *to)
         size_t len = 0;
         vnode_t *to_vnode = NULL;
 
-        res = dir_namev(to, &len, &pathname, NULL, to_vnode );
+        res = dir_namev(to, &len, &pathname, NULL, &to_vnode );
         dbg(DBG_PRINT, "(GRADING2B)\n");
 
         if(res < 0){
@@ -715,11 +734,12 @@ do_chdir(const char *path)
         }
         
         // ERROR CHECKS
-        if (dir_vnode->vn_ops->mkdir == NULL){
+         if (dir_vnode == NULL){
                 dbg(DBG_PRINT, "(GRADING2B)\n");
                 return -ENOENT;  /* No such file or directory */
         }
         if( !S_ISDIR(dir_vnode->vn_mode)){
+                vput(dir_vnode);
                 dbg(DBG_PRINT, "(GRADING2B)\n");
                 return -ENOTDIR;
         }
@@ -730,7 +750,7 @@ do_chdir(const char *path)
 
         vput(curproc->p_cwd);
         curproc->p_cwd = dir_vnode;
-        vget(dir_vnode->vn_fs, dir_vnode->vn_vno);
+        // vget(dir_vnode->vn_fs, dir_vnode->vn_vno);
         dbg(DBG_PRINT, "(GRADING2B)\n");
         return 0;
         // NOT_YET_IMPLEMENTED("VFS: do_chdir");
@@ -821,7 +841,8 @@ do_lseek(int fd, int offset, int whence)
 {
         if (fd >= NFILES || fd <0){
                 dbg(DBG_PRINT, "(GRADING2B)\n");
-                return -EINVAL; /* Invalid argument */
+                // return -EINVAL; /* Invalid argument */
+                return -EBADF;
         }
         file_t *file = NULL;
         file = fget(fd);

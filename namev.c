@@ -58,10 +58,10 @@ lookup(vnode_t *dir, const char *name, size_t len, vnode_t **result)
         }
 
         dbg(DBG_PRINT, "(GRADING2A 2.a\n)");
-        int lookupVal = 0;
-        lookupVal = dir->vn_ops->lookup(dir, name, len, result);
+        int res = 0;
+        res = dir->vn_ops->lookup(dir, name, len, result);
         dbg(DBG_PRINT, "(GRADING2A 2.a\n)");
-        return lookupVal;
+        return res;
         // NOT_YET_IMPLEMENTED("VFS: lookup");
         // return 0;
 }
@@ -108,25 +108,31 @@ dir_namev(const char *pathname, size_t *namelen, const char **name,
         dbg(DBG_PRINT, "(GRADING2A 2.b)\n");
 
         if (*pathname == '\0'){
-                dbg(DBG_PRINT, "(GRADING2A)\n");
+                dbg(DBG_PRINT, "(GRADING2B)\n");
                 return -EINVAL; /* Invalid argument */
         }
 
         vnode_t *prev = NULL, *base_vnode = NULL;
         int i = 0, offset = 0, len = 0, ret_code = 0;
 
+
         if (pathname[0] == '/'){
+                dbg(DBG_PRINT, "(GRADING2B)\n");
                 base_vnode = vfs_root_vn;
         }
         else if (base != NULL){
+                dbg(DBG_PRINT, "(GRADING2B)\n");
                 base_vnode = base;
         }
         else{
+                dbg(DBG_PRINT, "(GRADING2B)\n");
                 base_vnode = curproc->p_cwd;
         }
 
         vref(base_vnode);
+
         while(pathname[i] == '/'){
+            dbg(DBG_PRINT, "(GRADING2B)\n");
                 i++;
         }
 
@@ -148,7 +154,7 @@ dir_namev(const char *pathname, size_t *namelen, const char **name,
                 while(pathname[i] != '/' && pathname[i] != '\0'){
                         i++;
                         len++;
-                        // dbg(DBG_PRINT, "(GRADING2B)\n");
+                        dbg(DBG_PRINT, "(GRADING2B)\n");
                 }
                 // dbg(DBG_PRINT, "(GRADING2B)\n");
 
@@ -161,20 +167,22 @@ dir_namev(const char *pathname, size_t *namelen, const char **name,
                 /* pathname resolution must start with a valid directory */
                 KASSERT(NULL != base_vnode); 
                 dbg(DBG_PRINT, "(GRADING2A 2.b)\n");
-                if ((ret_code == -ENOTDIR) || (ret_code < 0 && ret_code != ENOENT)){
+                if ((ret_code == -ENOTDIR) || (ret_code < 0 && ret_code != -ENOENT)){
                         vput(prev);
                         dbg(DBG_PRINT, "(GRADING2B)\n");
                         return ret_code;
                 }
 
                 while(pathname[i] == '/'){
-                        i++;
+                    dbg(DBG_PRINT, "(GRADING2B)\n");
+                    i++;
                 }
 
         }while(pathname[i] != '\0' && ret_code >= 0);
 
 
         if (pathname[i-1] == '/'){
+                dbg(DBG_PRINT, "(GRADING2B)\n");
                 if (!S_ISDIR(base_vnode->vn_mode)){
                         vput(prev);
                         vput(base_vnode);
@@ -184,19 +192,20 @@ dir_namev(const char *pathname, size_t *namelen, const char **name,
         }
 
         if (pathname[i] != '\0'){
-                vput(prev);
-                dbg(DBG_PRINT, "(GRADING2B)\n");
-                return -ENOENT;
+            dbg(DBG_PRINT, "(GRADING2B)\n");
+            vput(prev);
+            return -ENOENT;
         }
         else if(ret_code == 0){
-                vput(base_vnode);
+            dbg(DBG_PRINT, "(GRADING2B)\n");
+            vput(base_vnode);
         }
-        
+        dbg(DBG_PRINT, "(GRADING2B)\n");
         *name = pathname + offset;
         *namelen = len;
         *res_vnode = prev;
         
-        // NOT_YET_IMPLEMENTED("VFS: dir_namev");
+        // // NOT_YET_IMPLEMENTED("VFS: dir_namev");
         return 0;
 }
 
@@ -217,7 +226,7 @@ open_namev(const char *pathname, int flag, vnode_t **res_vnode, vnode_t *base)
         size_t len = 0;
         const char *name = NULL;
         vnode_t *dir_vnode = NULL;
-        int retCode = dir_namev(pathname, &len, &name, base, dir_vnode);
+        int retCode = dir_namev(pathname, &len, &name, base, &dir_vnode);
 
         if (retCode < 0){
                 dbg(DBG_PRINT, "(GRADING2A 2.c)\n");
@@ -229,40 +238,26 @@ open_namev(const char *pathname, int flag, vnode_t **res_vnode, vnode_t *base)
                 since this function is not executed if you just start and stop weenix */
 
                 /* to create a file, need to make sure that the directory 
-                vnode supports the create operation */
-                if ((flag & O_CREAT)) { 
-                        KASSERT(NULL != dir_vnode->vn_ops->create);
-                        dbg(DBG_PRINT, "(GRADING2A 2.c)\n");
-                        dbg(DBG_PRINT, "(GRADING2A)\n");
-                }
+                // vnode supports the create operation */
 
                 /* No such file or directory */
                 if ((flag & O_CREAT) && retCode == -ENOENT){
                         retCode = dir_vnode->vn_ops->create(dir_vnode, name, len, res_vnode);
                         vput(dir_vnode);
                         dbg(DBG_PRINT, "(GRADING2A 2.c)\n");
+                        dbg(DBG_PRINT, "(GRADING2B)\n");
                         return retCode;
                 }
                 else{
+                        dbg(DBG_PRINT, "(GRADING2B)\n");
                         vput(dir_vnode);
-                        dbg(DBG_PRINT, "(GRADING2A 2.c)\n");
                         return retCode;
                 }
         }
         else{
-                if ((flag & O_WRONLY || flag & O_RDWR) && (*res_vnode)->vn_ops->mkdir != NULL){
-                        vput( *res_vnode);
-                        *res_vnode = NULL;
-                        vput(dir_vnode);
-                        dbg(DBG_PRINT, "(GRADING2A 2.c)\n");
-                        return -EISDIR; /* Is a directory */
-                }
-                else{
-                        vput(dir_vnode);
-                        dbg(DBG_PRINT, "(GRADING2A 2.c)\n");
-                        return 0;
-                }
-
+            dbg(DBG_PRINT, "(GRADING2B)\n");
+            vput(dir_vnode);    
+            return 0;
         }
         // NOT_YET_IMPLEMENTED("VFS: open_namev");
         // return 0;

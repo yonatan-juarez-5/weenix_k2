@@ -91,16 +91,16 @@ get_empty_fd(proc_t *p)
 int
 do_open(const char *filename, int oflags)
 {
-        int rw=0, wo=0, ro= 0;
-        rw = (oflags & O_RDWR) && !(oflags & O_WRONLY) && !(oflags & O_RDONLY);
-        wo = (oflags & O_WRONLY) && !(oflags & O_RDWR);
-        ro = ((oflags == O_RDONLY) || (oflags == (O_RDONLY | O_CREAT))) && !(oflags & O_RDWR);
-
-        int append = (oflags & O_APPEND);
-        if ((ro && wo) || (rw && (ro || wo))){
-                dbg(DBG_PRINT, "(GRADING2B)\n");
-                return -EINVAL; /* Invalid argument */
+        // check all combinations of RO/RW/WO and CREAT/TRUNC/APPEND
+        if (oflags != 0x000 && oflags != 0x001 && oflags != 0x002 && 
+            oflags != 0x100 && oflags != 0x101 && oflags != 0x102 &&
+            oflags != 0x200 && oflags != 0x201 && oflags != 0x202 && 
+            oflags != 0x400 && oflags != 0x401 && oflags != 0x402 ){
+            dbg(DBG_PRINT, "(GRADING2B)\n");
+            return -EINVAL;
         }
+
+        // dbg(DBG_PRINT, "***HELLO***\n");
         int fd = 0;
         fd = get_empty_fd(curproc);
         if (fd == -EMFILE){
@@ -121,41 +121,52 @@ do_open(const char *filename, int oflags)
         file->f_mode = 0;
         dbg(DBG_PRINT, "(GRADING2B)\n");
 
-        if (append){
-                file->f_mode = FMODE_APPEND;
-                dbg(DBG_PRINT, "(GRADING2B)\n");
+        if ((oflags & O_RDONLY) == O_RDONLY){
+            dbg(DBG_PRINT, "(GRADING2B)\n");
+            file->f_mode = FMODE_READ;
         }
-        if (wo){
-                file->f_mode = file->f_mode | FMODE_WRITE;
-                dbg(DBG_PRINT, "(GRADING2B)\n");
+        if ((oflags & O_WRONLY) == O_WRONLY){
+            dbg(DBG_PRINT, "(GRADING2B)\n");
+            file->f_mode = FMODE_WRITE;
         }
-        else if (rw){
-                file->f_mode = file->f_mode | FMODE_READ | FMODE_WRITE;
-                dbg(DBG_PRINT, "(GRADING2B)\n");
+        if ((oflags & O_RDWR) == O_RDWR){
+            dbg(DBG_PRINT, "(GRADING2B)\n");
+            file->f_mode = (FMODE_READ | FMODE_WRITE);
         }
-        else{
-                fput(file);
-                curproc->p_files[fd] = NULL;
-                dbg(DBG_PRINT, "(GRADING2B)\n");
-                return -EINVAL; /* Invalid argument */
+        if ((oflags & O_APPEND) == O_APPEND){
+            dbg(DBG_PRINT, "(GRADING2B)\n");
+            file->f_mode |= FMODE_APPEND;
         }
 
         vnode_t *res_vnode = NULL;
-        int res = open_namev(filename, oflags, &res_vnode, NULL);
+        int res = 0;
+        res = open_namev(filename, oflags, &res_vnode, NULL);
         
         if (res < 0){
+                dbg(DBG_PRINT, "(GRADING2B)\n");
                 curproc->p_files[fd] = NULL;
                 fput(file);
-                dbg(DBG_PRINT, "(GRADING2B)\n");
+                // dbg(DBG_PRINT, "(GRADING2B)\n");
                 return res;
         }
+        else if(S_ISDIR(res_vnode->vn_mode) && (((oflags & O_WRONLY) == O_WRONLY) || ((oflags & O_RDWR) == O_RDWR ))){
+                dbg(DBG_PRINT, "(GRADING2B)\n");
+                vput(res_vnode);
+                fput(file);
+                curproc->p_files[fd] = NULL;
+                return -EISDIR;
+        }
         
-        file->f_pos = 0;
-        file->f_refcount = 1;
-        file->f_vnode = res_vnode;
+
+        if (strlen(filename) > 0 && filename[strlen(filename)-1] == '/' && !S_ISDIR(res_vnode->vn_mode)){
+            dbg(DBG_PRINT, "(GRADING2B)\n");
+            vput(res_vnode);
+            fput(file);
+            curproc->p_files[fd] = NULL;
+            return -ENOTDIR;
+        }
         dbg(DBG_PRINT, "(GRADING2B)\n");
+        file->f_vnode = res_vnode;
+        file->f_pos = 0;
         return fd;
-        
-        // NOT_YET_IMPLEMENTED("VFS: do_open");
-        // return -1;
 }
